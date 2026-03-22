@@ -547,8 +547,8 @@ st.markdown("""
 <div class="hero-wrap">
     <div class="hero-glow"></div>
     <div class="hero-badge">⚡ &nbsp; AI-Powered &nbsp;·&nbsp; Qlik Sense &nbsp;·&nbsp; ETL Automation</div>
-    <h1 class="hero-title">QlikForge</h1>
-    <p class="hero-sub">Transform metadata into production-ready QVD scripts in seconds — powered by Claude AI</p>
+    <h1 class="hero-title">Qlik</h1>
+    <p class="hero-sub">Transform metadata into QVD scripts using Claude AI</p>
 </div>
 """, unsafe_allow_html=True)
 
