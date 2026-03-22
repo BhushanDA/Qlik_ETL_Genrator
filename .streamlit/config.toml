@@ -1,0 +1,44 @@
+[theme]
+primaryColor = "#4361ee"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8f9fa"
+textColor = "#1a1a2e"
+font = "sans serif"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+```
+
+Click **Commit changes** after each upload.
+
+---
+
+## Step 5 — Sign Up for Streamlit Community Cloud
+
+Go to **https://share.streamlit.io** → Click **Sign up** → **Continue with GitHub** (use the same GitHub account)
+
+---
+
+## Step 6 — Deploy the App
+
+1. Click **New app** (top right)
+2. Fill in the form:
+   - **Repository:** `your-username/qlik-etl-generator`
+   - **Branch:** `main`
+   - **Main file path:** `app.py`
+3. Click **Deploy!**
+
+Streamlit will install all dependencies from `requirements.txt` automatically. Takes about **2–3 minutes**.
+
+---
+
+## Step 7 — Get Your Live URL
+
+Once deployed, Streamlit gives you a public URL like:
+```
+https://your-username-qlik-etl-generator-app-xxxx.streamlit.app
