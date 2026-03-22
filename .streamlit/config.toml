@@ -41,4 +41,4 @@ Streamlit will install all dependencies from `requirements.txt` automatically. T
 
 Once deployed, Streamlit gives you a public URL like:
 ```
-https://your-username-qlik-etl-generator-app-xxxx.streamlit.app
+https://your-username-qlik-etl-generator-app.streamlit.app
