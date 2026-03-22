@@ -10,7 +10,7 @@ from prompts import RAW_SYSTEM_PROMPT, INT_SYSTEM_PROMPT
 
 # ─── PAGE CONFIG ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="QlikForge — ETL Script Generator",
+    page_title="Qlik — ETL Script Generator",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
