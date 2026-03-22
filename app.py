@@ -226,10 +226,10 @@ html, body, [class*="css"], .stApp {
 /* ── STREAMLIT OVERRIDES ── */
 /* Inputs */
 .stTextInput input, .stTextArea textarea {
-    background: rgba(255,255,255,0.04) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
+    background: #f8fafc !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
     border-radius: 10px !important;
-    color: #e2e8f0 !important;
+    color: #0f172a !important;
     font-family: 'Space Grotesk', sans-serif !important;
     font-size: 0.9rem !important;
     transition: border-color 0.2s !important;
