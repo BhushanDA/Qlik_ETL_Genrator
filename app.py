@@ -64,6 +64,33 @@ st.markdown("""
         font-weight: 500;
         margin-top: 0.5rem;
     }
+    .prompt-box {
+        background: #fffde7;
+        border: 1.5px solid #f9a825;
+        border-radius: 12px;
+        padding: 1.2rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .prompt-label {
+        font-size: 0.85rem;
+        color: #f57f17;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+    .prompt-edited-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #fff8e1;
+        border: 1px solid #ffe082;
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 0.78rem;
+        color: #f57f17;
+        font-weight: 500;
+    }
     .success-banner {
         background: #e8f5e9;
         border: 1px solid #a5d6a7;
@@ -91,6 +118,13 @@ st.markdown("""
     h2 { font-size: 1.3rem !important; }
 </style>
 """, unsafe_allow_html=True)
+
+
+# ─── SESSION STATE INIT ───────────────────────────────────────────────────────
+if "raw_prompt" not in st.session_state:
+    st.session_state["raw_prompt"] = RAW_SYSTEM_PROMPT
+if "int_prompt" not in st.session_state:
+    st.session_state["int_prompt"] = INT_SYSTEM_PROMPT
 
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -176,17 +210,18 @@ def render_scripts(scripts: list[dict], prefix: str, key_prefix: str):
                 st.code(s["script"], language="sql")
 
 
+def prompt_edited(key: str, default: str) -> bool:
+    return st.session_state.get(key, default).strip() != default.strip()
+
+
 # ─── HEADER ───────────────────────────────────────────────────────────────────
 st.title("⚡ Qlik Sense ETL Script Generator")
 st.markdown("Upload your **Metadata.xlsx** and auto-generate production-ready RAW & Intermediate QVD scripts using Claude AI.")
-
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
-# ─── STEP 1: API KEY (FRONT AND CENTER) ───────────────────────────────────────
+# ─── STEP 1: API KEY ──────────────────────────────────────────────────────────
 st.markdown("### Step 1 — Enter your Anthropic API Key")
-
 st.markdown('<div class="api-key-box">', unsafe_allow_html=True)
-
 col_key, col_status = st.columns([3, 1])
 with col_key:
     st.markdown('<div class="api-key-label">🔑 Anthropic API Key</div>', unsafe_allow_html=True)
@@ -201,7 +236,6 @@ with col_key:
     if raw_key:
         st.session_state["api_key"] = raw_key.strip()
     st.caption("🔒 Session-only — your key is never saved or sent anywhere except the Anthropic API.")
-
 with col_status:
     st.markdown("<br>", unsafe_allow_html=True)
     if st.session_state.get("api_key", "").strip():
@@ -212,19 +246,90 @@ with col_status:
             '<a href="https://console.anthropic.com/settings/keys" target="_blank" style="font-size:0.8rem;">Get API key →</a>',
             unsafe_allow_html=True,
         )
-
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Gate: don't show the rest until key is entered
 if not st.session_state.get("api_key", "").strip():
     st.info("👆 Enter your Anthropic API key above to unlock the script generator.")
     st.stop()
 
 client = get_client()
 
-# ─── STEP 2: METADATA INPUT ───────────────────────────────────────────────────
+# ─── STEP 2: PROMPT EDITOR ────────────────────────────────────────────────────
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown("### Step 2 — Provide Metadata")
+st.markdown("### Step 2 — Customize Prompts *(optional)*")
+
+with st.expander("✏️ Edit AI Prompts", expanded=False):
+    st.markdown(
+        """
+        <div class="prompt-box">
+        <div class="prompt-label">💡 When to edit prompts</div>
+        Customize the prompts below if you need to adjust script patterns, add domain-specific rules,
+        change transformation logic, or enforce custom naming conventions.
+        Changes apply immediately to the next generation run. Use <strong>Reset to Default</strong> to restore the original prompt anytime.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    ptab_raw, ptab_int = st.tabs(["🗄 RAW Layer Prompt", "🔄 Intermediate Layer Prompt"])
+
+    with ptab_raw:
+        col_raw_hdr, col_raw_badge, col_raw_reset = st.columns([3, 1, 1])
+        with col_raw_hdr:
+            st.markdown("**RAW Layer System Prompt**")
+        with col_raw_badge:
+            if prompt_edited("raw_prompt", RAW_SYSTEM_PROMPT):
+                st.markdown('<div class="prompt-edited-badge">✏ Modified</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div style="font-size:0.78rem;color:#888;margin-top:6px;">Default</div>', unsafe_allow_html=True)
+        with col_raw_reset:
+            if st.button("↺ Reset", key="reset_raw", help="Restore original RAW prompt"):
+                st.session_state["raw_prompt"] = RAW_SYSTEM_PROMPT
+                st.rerun()
+
+        edited_raw = st.text_area(
+            label="raw_prompt_editor",
+            value=st.session_state["raw_prompt"],
+            height=400,
+            label_visibility="collapsed",
+            help="This is the system prompt sent to Claude when generating RAW layer scripts.",
+            key="raw_prompt_area",
+        )
+        if edited_raw != st.session_state["raw_prompt"]:
+            st.session_state["raw_prompt"] = edited_raw
+
+        st.caption(f"Characters: {len(edited_raw):,}")
+
+    with ptab_int:
+        col_int_hdr, col_int_badge, col_int_reset = st.columns([3, 1, 1])
+        with col_int_hdr:
+            st.markdown("**Intermediate Layer System Prompt**")
+        with col_int_badge:
+            if prompt_edited("int_prompt", INT_SYSTEM_PROMPT):
+                st.markdown('<div class="prompt-edited-badge">✏ Modified</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div style="font-size:0.78rem;color:#888;margin-top:6px;">Default</div>', unsafe_allow_html=True)
+        with col_int_reset:
+            if st.button("↺ Reset", key="reset_int", help="Restore original Intermediate prompt"):
+                st.session_state["int_prompt"] = INT_SYSTEM_PROMPT
+                st.rerun()
+
+        edited_int = st.text_area(
+            label="int_prompt_editor",
+            value=st.session_state["int_prompt"],
+            height=400,
+            label_visibility="collapsed",
+            help="This is the system prompt sent to Claude when generating Intermediate layer scripts.",
+            key="int_prompt_area",
+        )
+        if edited_int != st.session_state["int_prompt"]:
+            st.session_state["int_prompt"] = edited_int
+
+        st.caption(f"Characters: {len(edited_int):,}")
+
+# ─── STEP 3: METADATA INPUT ───────────────────────────────────────────────────
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown("### Step 3 — Provide Metadata")
 
 input_mode = st.radio(
     "Input method",
@@ -273,7 +378,7 @@ else:
         raw_paste = st.text_area(
             "RAW metadata",
             height=180,
-            placeholder="Layer|Table_Name|Source_Type|Source_Name|Source_Columns|Key_Columns|Load_Type|Incremental_Mode|Qlik_Target|Validation_Rules\nFact|fact_claims|SQL|claim_transaction_tbl|...",
+            placeholder="Layer|Table_Name|Source_Type|Source_Name|Source_Columns|Key_Columns|Load_Type|Incremental_Mode|Qlik_Target|Validation_Rules",
             label_visibility="collapsed",
         )
     with col2:
@@ -281,19 +386,33 @@ else:
         int_paste = st.text_area(
             "INT metadata",
             height=180,
-            placeholder="Layer|Table_Name|Source_Type|Source_QVDs|Key_Columns|Qlik_Target|Validation_Rules|Join_Mapping|Aggregate_Columns|Derived_Columns|Filter_Conditions|Transformations\nIntermediate|int_claims_summary|QVD|...",
+            placeholder="Layer|Table_Name|Source_Type|Source_QVDs|Key_Columns|Qlik_Target|Validation_Rules|Join_Mapping|Aggregate_Columns|Derived_Columns|Filter_Conditions|Transformations",
             label_visibility="collapsed",
         )
 
-# ─── STEP 3: GENERATE ─────────────────────────────────────────────────────────
+# ─── STEP 4: GENERATE ─────────────────────────────────────────────────────────
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown("### Step 3 — Generate Scripts")
+st.markdown("### Step 4 — Generate Scripts")
+
+# Show active prompt status
+raw_modified = prompt_edited("raw_prompt", RAW_SYSTEM_PROMPT)
+int_modified = prompt_edited("int_prompt", INT_SYSTEM_PROMPT)
+if raw_modified or int_modified:
+    modified_layers = []
+    if raw_modified:
+        modified_layers.append("RAW")
+    if int_modified:
+        modified_layers.append("Intermediate")
+    st.markdown(
+        f'<div class="prompt-edited-badge" style="margin-bottom:1rem;">✏ Using custom prompt for: {", ".join(modified_layers)}</div>',
+        unsafe_allow_html=True,
+    )
 
 tab_raw, tab_int, tab_both = st.tabs(["🗄 RAW Layer", "🔄 Intermediate Layer", "⚡ Generate Both"])
 
 # ── RAW TAB ───────────────────────────────────────────────────────────────────
 with tab_raw:
-    st.markdown("Extracts from SQL source tables into QVDs. Supports **Full Load**, **Incremental Insert**, and **Incremental Upsert** — with validation and audit logging.")
+    st.markdown("Extracts from SQL source tables into QVDs. Supports **Full Load**, **Incremental Insert**, and **Incremental Upsert**.")
     col_r1, col_r2 = st.columns([3, 1])
     with col_r1:
         if raw_df is not None:
@@ -301,7 +420,7 @@ with tab_raw:
         elif raw_paste.strip():
             st.markdown("Ready: pasted metadata detected")
         else:
-            st.markdown("Provide metadata above first.")
+            st.markdown("Provide metadata in Step 3 first.")
     with col_r2:
         gen_raw = st.button("Generate RAW Scripts ▶", type="primary", use_container_width=True, key="btn_raw")
 
@@ -311,8 +430,11 @@ with tab_raw:
             st.error("No RAW metadata found. Please upload Excel or paste metadata.")
         else:
             try:
-                result = call_claude(client, RAW_SYSTEM_PROMPT,
-                    f"Generate RAW layer Qlik scripts for the following metadata:\n\n{meta}")
+                result = call_claude(
+                    client,
+                    st.session_state["raw_prompt"],   # ← uses live prompt (edited or default)
+                    f"Generate RAW layer Qlik scripts for the following metadata:\n\n{meta}"
+                )
                 st.session_state["raw_scripts"] = split_scripts(result)
             except Exception as e:
                 st.error(f"API Error: {e}")
@@ -322,7 +444,7 @@ with tab_raw:
 
 # ── INTERMEDIATE TAB ──────────────────────────────────────────────────────────
 with tab_int:
-    st.markdown("Joins RAW QVDs and applies aggregations, derived fields, and transformations (Financial Year, approval ratios, policy durations, etc.).")
+    st.markdown("Joins RAW QVDs and applies aggregations, derived fields, and business transformations.")
     col_i1, col_i2 = st.columns([3, 1])
     with col_i1:
         if int_df is not None:
@@ -330,7 +452,7 @@ with tab_int:
         elif int_paste.strip():
             st.markdown("Ready: pasted metadata detected")
         else:
-            st.markdown("Provide metadata above first.")
+            st.markdown("Provide metadata in Step 3 first.")
     with col_i2:
         gen_int = st.button("Generate INT Scripts ▶", type="primary", use_container_width=True, key="btn_int")
 
@@ -340,8 +462,11 @@ with tab_int:
             st.error("No Intermediate metadata found. Please upload Excel or paste metadata.")
         else:
             try:
-                result = call_claude(client, INT_SYSTEM_PROMPT,
-                    f"Generate Intermediate layer Qlik scripts for the following metadata:\n\n{meta}")
+                result = call_claude(
+                    client,
+                    st.session_state["int_prompt"],   # ← uses live prompt (edited or default)
+                    f"Generate Intermediate layer Qlik scripts for the following metadata:\n\n{meta}"
+                )
                 st.session_state["int_scripts"] = split_scripts(result)
             except Exception as e:
                 st.error(f"API Error: {e}")
@@ -356,13 +481,15 @@ with tab_both:
     gen_both = st.button("⚡ Generate All Scripts", type="primary", key="btn_both")
 
     if gen_both:
-        # RAW
         with st.status("Generating RAW layer scripts...", expanded=True) as s_raw:
             raw_meta = metadata_to_text(raw_df) if (use_excel and raw_df is not None) else raw_paste
             if raw_meta and raw_meta.strip():
                 try:
-                    res = call_claude(client, RAW_SYSTEM_PROMPT,
-                        f"Generate RAW layer Qlik scripts for the following metadata:\n\n{raw_meta}")
+                    res = call_claude(
+                        client,
+                        st.session_state["raw_prompt"],
+                        f"Generate RAW layer Qlik scripts for the following metadata:\n\n{raw_meta}"
+                    )
                     st.session_state["raw_scripts"] = split_scripts(res)
                     s_raw.update(label=f"✅ RAW done — {len(st.session_state['raw_scripts'])} scripts", state="complete")
                 except Exception as e:
@@ -370,13 +497,15 @@ with tab_both:
             else:
                 s_raw.update(label="⚠ No RAW metadata — skipped", state="complete")
 
-        # Intermediate
         with st.status("Generating Intermediate layer scripts...", expanded=True) as s_int:
             int_meta = metadata_to_text(int_df) if (use_excel and int_df is not None) else int_paste
             if int_meta and int_meta.strip():
                 try:
-                    res = call_claude(client, INT_SYSTEM_PROMPT,
-                        f"Generate Intermediate layer Qlik scripts for the following metadata:\n\n{int_meta}")
+                    res = call_claude(
+                        client,
+                        st.session_state["int_prompt"],
+                        f"Generate Intermediate layer Qlik scripts for the following metadata:\n\n{int_meta}"
+                    )
                     st.session_state["int_scripts"] = split_scripts(res)
                     s_int.update(label=f"✅ Intermediate done — {len(st.session_state['int_scripts'])} scripts", state="complete")
                 except Exception as e:
